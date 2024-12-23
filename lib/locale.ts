@@ -3,11 +3,41 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+declare global {
+	// eslint-disable-next-line camelcase, no-var
+	var _nc_l10n_locale: string | undefined
+	// eslint-disable-next-line camelcase, no-var
+	var _nc_l10n_language: string | undefined
+}
+
 /**
  * Returns the user's locale
+ * @example 'de_DE'
  */
 export function getLocale(): string {
-	return document.documentElement.dataset.locale || 'en'
+	// Web-browser runtime
+	if (typeof document !== 'undefined' && document.documentElement.dataset.locale) {
+		return document.documentElement.dataset.locale
+	}
+
+	// Node.js runtime
+	if ('_nc_l10n_locale' in globalThis && globalThis._nc_l10n_locale) {
+		return globalThis._nc_l10n_locale
+	}
+
+	// Fallback to English
+	return 'en'
+}
+
+/**
+ * Set the user's locale
+ * @param locale - The locale to set
+ */
+export function setLocale(locale: string): void {
+	if (typeof document !== 'undefined') {
+		document.documentElement.lang = locale
+	}
+	globalThis._nc_l10n_locale = locale
 }
 
 /**
@@ -20,9 +50,32 @@ export function getCanonicalLocale(): string {
 
 /**
  * Returns the user's language
+ * @example 'de-DE'
  */
 export function getLanguage(): string {
-	return document.documentElement.lang || 'en'
+	// Web-browser runtime
+	if (typeof document !== 'undefined' && document.documentElement.lang) {
+		return document.documentElement.lang
+	}
+
+	// Node.js runtime
+	if ('_nc_l10n_language' in globalThis && globalThis._nc_l10n_language) {
+		return globalThis._nc_l10n_language
+	}
+
+	// Fallback to English
+	return 'en'
+}
+
+/**
+ * Set the user's language
+ * @param language - The language to set
+ */
+export function setLanguage(language: string): void {
+	if (typeof document !== 'undefined') {
+		document.documentElement.lang = language
+	}
+	globalThis._nc_l10n_language = language
 }
 
 /**

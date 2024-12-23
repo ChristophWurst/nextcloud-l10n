@@ -44,7 +44,7 @@ export interface NextcloudWindowWithRegistry extends Nextcloud.v27.WindowWithGlo
 	_oc_l10n_registry_plural_functions?: Record<string, PluralFunction>
 }
 
-declare const window: NextcloudWindowWithRegistry
+declare const globalThis: NextcloudWindowWithRegistry
 
 interface AppTranslations {
 	translations: Translations
@@ -59,8 +59,8 @@ interface AppTranslations {
  */
 export function hasAppTranslations(appId: string) {
 	return (
-		window._oc_l10n_registry_translations?.[appId] !== undefined
-		&& window._oc_l10n_registry_plural_functions?.[appId] !== undefined
+		globalThis._oc_l10n_registry_translations?.[appId] !== undefined
+		&& globalThis._oc_l10n_registry_plural_functions?.[appId] !== undefined
 	)
 }
 
@@ -76,15 +76,15 @@ export function registerAppTranslations(
 	translations: Translations,
 	pluralFunction: PluralFunction,
 ) {
-	window._oc_l10n_registry_translations = Object.assign(
-		window._oc_l10n_registry_translations || {},
+	globalThis._oc_l10n_registry_translations = Object.assign(
+		globalThis._oc_l10n_registry_translations || {},
 		{
-			[appId]: Object.assign(window._oc_l10n_registry_translations?.[appId] || {}, translations),
+			[appId]: Object.assign(globalThis._oc_l10n_registry_translations?.[appId] || {}, translations),
 		},
 	)
 
-	window._oc_l10n_registry_plural_functions = Object.assign(
-		window._oc_l10n_registry_plural_functions || {},
+	globalThis._oc_l10n_registry_plural_functions = Object.assign(
+		globalThis._oc_l10n_registry_plural_functions || {},
 		{
 			[appId]: pluralFunction,
 		},
@@ -97,8 +97,8 @@ export function registerAppTranslations(
  * @param {string} appId the app id
  */
 export function unregisterAppTranslations(appId: string) {
-	delete window._oc_l10n_registry_translations?.[appId]
-	delete window._oc_l10n_registry_plural_functions?.[appId]
+	delete globalThis._oc_l10n_registry_translations?.[appId]
+	delete globalThis._oc_l10n_registry_plural_functions?.[appId]
 }
 
 /**
@@ -109,7 +109,7 @@ export function unregisterAppTranslations(appId: string) {
  */
 export function getAppTranslations(appId: string): AppTranslations {
 	return {
-		translations: window._oc_l10n_registry_translations?.[appId] ?? {},
-		pluralFunction: window._oc_l10n_registry_plural_functions?.[appId] ?? ((number: number) => number),
+		translations: globalThis._oc_l10n_registry_translations?.[appId] ?? {},
+		pluralFunction: globalThis._oc_l10n_registry_plural_functions?.[appId] ?? ((number: number) => number),
 	}
 }

@@ -14,14 +14,14 @@ import {
 	n,
 } from '../lib/translation'
 
-declare const window: NextcloudWindowWithRegistry
+declare const globalThis: NextcloudWindowWithRegistry
 
 const setLocale = (locale: string) => document.documentElement.setAttribute('data-locale', locale)
 const setLanguage = (lang: string) => document.documentElement.setAttribute('lang', lang)
 
 describe('translate', () => {
-	const mockWindowDE = () => {
-		window._oc_l10n_registry_translations = {
+	const mockGlobalThisDE = () => {
+		globalThis._oc_l10n_registry_translations = {
 			core: {
 				'Hello world!': 'Hallo Welt!',
 				'Hello {name}': 'Hallo {name}',
@@ -35,13 +35,13 @@ describe('translate', () => {
 				],
 			},
 		}
-		window._oc_l10n_registry_plural_functions = {
+		globalThis._oc_l10n_registry_plural_functions = {
 			core: (t) => t === 1 ? 0 : 1,
 		}
 		setLocale('de')
 	}
 
-	beforeAll(mockWindowDE)
+	beforeAll(mockGlobalThisDE)
 
 	it('without placeholder HTML escaping', () => {
 		const text = 'Hello {name}'
@@ -200,8 +200,8 @@ describe('translate', () => {
 describe('register', () => {
 	beforeEach(() => {
 		setLocale('de_DE')
-		window._oc_l10n_registry_translations = undefined
-		window._oc_l10n_registry_plural_functions = undefined
+		globalThis._oc_l10n_registry_translations = undefined
+		globalThis._oc_l10n_registry_plural_functions = undefined
 	})
 
 	it('with blank registry', () => {
@@ -215,12 +215,12 @@ describe('register', () => {
 	})
 
 	it('extend registered translations', () => {
-		window._oc_l10n_registry_translations = {
+		globalThis._oc_l10n_registry_translations = {
 			app: {
 				Application: 'Anwendung',
 			},
 		}
-		window._oc_l10n_registry_plural_functions = {
+		globalThis._oc_l10n_registry_plural_functions = {
 			app: (t) => t === 1 ? 0 : 1,
 		}
 		register('app', {
@@ -231,12 +231,12 @@ describe('register', () => {
 	})
 
 	it('extend with another new app', () => {
-		window._oc_l10n_registry_translations = {
+		globalThis._oc_l10n_registry_translations = {
 			core: {
 				'Hello world!': 'Hallo Welt!',
 			},
 		}
-		window._oc_l10n_registry_plural_functions = {
+		globalThis._oc_l10n_registry_plural_functions = {
 			core: (t) => t === 1 ? 0 : 1,
 		}
 		register('app', {
@@ -247,8 +247,8 @@ describe('register', () => {
 	})
 
 	it('unregister', () => {
-		window._oc_l10n_registry_translations = {}
-		window._oc_l10n_registry_plural_functions = {}
+		globalThis._oc_l10n_registry_translations = {}
+		globalThis._oc_l10n_registry_plural_functions = {}
 		register('app', {
 			Application: 'Anwendung',
 		})

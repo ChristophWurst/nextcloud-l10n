@@ -12,20 +12,20 @@ import {
 	unregisterAppTranslations,
 } from '../lib/registry'
 
-declare const window: NextcloudWindowWithRegistry
+declare const globalThis: NextcloudWindowWithRegistry
 
-const clearWindow = () => {
-	delete window._oc_l10n_registry_plural_functions
-	delete window._oc_l10n_registry_translations
+const clearGlobalThis = () => {
+	delete globalThis._oc_l10n_registry_plural_functions
+	delete globalThis._oc_l10n_registry_translations
 }
 
 const pluralFunction = (number: number) => (number > 1 ? 1 : 0)
 
-const mockWindow = () => {
-	window._oc_l10n_registry_plural_functions = {
+const mockGlobalThis = () => {
+	globalThis._oc_l10n_registry_plural_functions = {
 		core: pluralFunction,
 	}
-	window._oc_l10n_registry_translations = {
+	globalThis._oc_l10n_registry_translations = {
 		core: {
 			foo: 'foo',
 			'_%n bar_::_%n bars_': [
@@ -37,25 +37,25 @@ const mockWindow = () => {
 }
 
 describe('registry', () => {
-	beforeAll(clearWindow)
-	afterEach(clearWindow)
+	beforeAll(clearGlobalThis)
+	afterEach(clearGlobalThis)
 
 	test('hasAppTranslations', () => {
 		expect(hasAppTranslations('doesnotexist')).toBe(false)
 
-		mockWindow()
+		mockGlobalThis()
 
 		expect(hasAppTranslations('core')).toBe(true)
 		expect(hasAppTranslations('doesnotexist')).toBe(false)
 
 		// not fully initialized registry
-		delete window._oc_l10n_registry_plural_functions
+		delete globalThis._oc_l10n_registry_plural_functions
 		expect(hasAppTranslations('core')).toBe(false)
 	})
 
 	describe('getAppTranslations', () => {
 		beforeEach(() => {
-			clearWindow()
+			clearGlobalThis()
 		})
 
 		it('without translations', () => {
@@ -66,7 +66,7 @@ describe('registry', () => {
 		})
 
 		it('with translations', () => {
-			mockWindow()
+			mockGlobalThis()
 
 			let bundle = getAppTranslations('core')
 			expect(Object.keys(bundle.translations).length > 0).toBe(true)
@@ -79,68 +79,68 @@ describe('registry', () => {
 	})
 
 	describe('unregisterAppTranslations', () => {
-		beforeEach(clearWindow)
+		beforeEach(clearGlobalThis)
 
 		it('works without registry', () => {
 			expect(() => unregisterAppTranslations('doesnotexist')).not.toThrowError()
 		})
 
 		it('works with not registered app', () => {
-			mockWindow()
+			mockGlobalThis()
 
 			expect(() => unregisterAppTranslations('doesnotexist')).not.toThrowError()
-			expect(window._oc_l10n_registry_plural_functions?.core).toBe(pluralFunction)
-			expect(Object.keys(window._oc_l10n_registry_translations?.core || {}).length > 0).toBe(true)
+			expect(globalThis._oc_l10n_registry_plural_functions?.core).toBe(pluralFunction)
+			expect(Object.keys(globalThis._oc_l10n_registry_translations?.core || {}).length > 0).toBe(true)
 		})
 
 		it('works with registered app', () => {
-			mockWindow()
+			mockGlobalThis()
 
 			expect(() => unregisterAppTranslations('core')).not.toThrowError()
-			expect(window._oc_l10n_registry_plural_functions?.core).toBe(undefined)
-			expect(window._oc_l10n_registry_translations?.core).toBe(undefined)
+			expect(globalThis._oc_l10n_registry_plural_functions?.core).toBe(undefined)
+			expect(globalThis._oc_l10n_registry_translations?.core).toBe(undefined)
 		})
 	})
 
 	describe('registerAppTranslations', () => {
-		beforeEach(clearWindow)
+		beforeEach(clearGlobalThis)
 
 		it('works without registry', () => {
 			const translations = {
 				foo: 'foo',
 			}
 			expect(() => registerAppTranslations('myapp', translations, pluralFunction)).not.toThrowError()
-			expect(window._oc_l10n_registry_translations?.myapp).toMatchObject(translations)
-			expect(window._oc_l10n_registry_plural_functions?.myapp).toBe(pluralFunction)
+			expect(globalThis._oc_l10n_registry_translations?.myapp).toMatchObject(translations)
+			expect(globalThis._oc_l10n_registry_plural_functions?.myapp).toBe(pluralFunction)
 		})
 
 		it('works with new app', () => {
-			mockWindow()
+			mockGlobalThis()
 
 			const translations = {
 				foo: 'foo',
 			}
 			expect(() => registerAppTranslations('myapp', translations, pluralFunction)).not.toThrowError()
-			expect(window._oc_l10n_registry_translations?.myapp).toMatchObject(translations)
-			expect(window._oc_l10n_registry_plural_functions?.myapp).toBe(pluralFunction)
+			expect(globalThis._oc_l10n_registry_translations?.myapp).toMatchObject(translations)
+			expect(globalThis._oc_l10n_registry_plural_functions?.myapp).toBe(pluralFunction)
 			// Unchanged other apps
-			expect(Object.keys(window._oc_l10n_registry_translations?.core || {}).length > 0).toBe(true)
-			expect(window._oc_l10n_registry_plural_functions?.core).toBe(pluralFunction)
+			expect(Object.keys(globalThis._oc_l10n_registry_translations?.core || {}).length > 0).toBe(true)
+			expect(globalThis._oc_l10n_registry_plural_functions?.core).toBe(pluralFunction)
 		})
 
 		it('works with already registered app', () => {
 			const newTranslations = {
 				newvalue: 'newvalue',
 			}
-			mockWindow()
+			mockGlobalThis()
 
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			const numBefore = Object.keys(window._oc_l10n_registry_translations!.core).length
+			const numBefore = Object.keys(globalThis._oc_l10n_registry_translations!.core).length
 
 			expect(() => registerAppTranslations('core', newTranslations, pluralFunction)).not.toThrowError()
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			expect(Object.keys(window._oc_l10n_registry_translations!.core).length).toBe(numBefore + 1)
-			expect(window._oc_l10n_registry_plural_functions?.core).toBe(pluralFunction)
+			expect(Object.keys(globalThis._oc_l10n_registry_translations!.core).length).toBe(numBefore + 1)
+			expect(globalThis._oc_l10n_registry_plural_functions?.core).toBe(pluralFunction)
 		})
 	})
 })

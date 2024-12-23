@@ -3,14 +3,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 import type { Translations } from './registry'
-import { getLanguage, getLocale } from './locale'
+import { getLanguage } from './locale'
 import {
 	getAppTranslations,
 	hasAppTranslations,
 	registerAppTranslations,
 	unregisterAppTranslations,
 } from './registry'
-import { generateFilePath } from '@nextcloud/router'
 
 import DOMPurify from 'dompurify'
 import escapeHTML from 'escape-html'
@@ -154,47 +153,29 @@ export function translatePlural(
  * the translations are loaded
  * @return {Promise} promise
  */
-export function loadTranslations(appName: string, callback: (...args: []) => unknown) {
-	interface TranslationBundle {
-		translations: Translations
-		pluralForm: string
-	}
-
-	if (hasAppTranslations(appName) || getLocale() === 'en') {
+export async function loadTranslations(appName: string, callback: (...args: []) => unknown) {
+	if (hasAppTranslations(appName) || getLanguage() === 'en') {
 		return Promise.resolve().then(callback)
 	}
 
-	const url = generateFilePath(appName, 'l10n', getLocale() + '.json')
+	const { generateFilePath } = await import('@nextcloud/router')
+	const url = generateFilePath(appName, 'l10n', getLanguage() + '.json')
 
-	const promise = new Promise<TranslationBundle>((resolve, reject) => {
-		const request = new XMLHttpRequest()
-		request.open('GET', url, true)
-		request.onerror = () => {
-			reject(new Error(request.statusText || 'Network error'))
+	const response = await fetch(url)
+	if (!response.ok) {
+		throw new Error(response.statusText || 'Network error')
+	}
+	try {
+		const bundle = await response.json()
+		if (typeof bundle.translations === 'object') {
+			register(appName, bundle.translations)
+			return Promise.resolve(bundle).then(callback)
 		}
-		request.onload = () => {
-			if (request.status >= 200 && request.status < 300) {
-				try {
-					const bundle = JSON.parse(request.responseText)
-					if (typeof bundle.translations === 'object') resolve(bundle)
-				} catch (error) {
-					// error is probably a SyntaxError due to invalid response text, this is handled by next line
-				}
-				reject(new Error('Invalid content of translation bundle'))
-			} else {
-				reject(new Error(request.statusText))
-			}
-		}
-		request.send()
-	})
-
-	// load JSON translation bundle per AJAX
-	return promise
-		.then((result) => {
-			register(appName, result.translations)
-			return result
-		})
-		.then(callback)
+		throw new Error('Invalid content of translation bundle')
+	} catch {
+		// Error is probably a SyntaxError due to invalid response, this is handled by the next line
+	}
+	throw new Error('Invalid content of translation bundle')
 }
 
 /**

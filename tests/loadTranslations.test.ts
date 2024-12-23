@@ -2,16 +2,38 @@
  * SPDX-FileCopyrightText: 2023 Nextcloud GmbH and Nextcloud contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
-import { MockXhrServer, newServer } from 'mock-xmlhttprequest'
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { setupServer } from 'msw/node'
 
 import { loadTranslations, register, translate, unregister } from '../lib/translation'
 
-const setLocale = (locale: string) => document.documentElement.setAttribute('data-locale', locale)
+const setLanguage = (language: string) => document.documentElement.setAttribute('lang', language)
+
+const server = setupServer(
+	// Response with valid translations
+	http.get('/myapp/l10n/de.json', () => HttpResponse.json({
+		translations: {
+			'Hello world!': 'Hallo Welt!',
+		},
+	})),
+	// Response with empty body
+	http.get('/empty/l10n/de.json', () => HttpResponse.json()),
+	// Response contains JSON but no translations
+	http.get('/missing-bundle/l10n/de.json', () => HttpResponse.json({})),
+	// Response contains JSON but the translations are invalid
+	http.get('/invalid/l10n/de.json', () => HttpResponse.json({
+		translations: 'invalid',
+	})),
+	// Response with 404
+	http.get('/404/l10n/de.json', () => new HttpResponse(null, { status: 404, statusText: 'Not Found' })),
+	// Response with 500
+	http.get('/500/l10n/de.json', () => new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' })),
+	// Network error
+	http.get('/networkissue/l10n/de.json', () => HttpResponse.error()),
+)
 
 describe('loadTranslations', () => {
-	let server: MockXhrServer
-
 	beforeAll(() => {
 		// Mock some server state
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,56 +51,16 @@ describe('loadTranslations', () => {
 	})
 
 	beforeEach(() => {
-		setLocale('de')
-		server = newServer()
-			.addHandler('GET', '/myapp/l10n/de.json', {
-				status: 200,
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					translations: {
-						'Hello world!': 'Hallo Welt!',
-					},
-				}),
-			})
-			// Response with empty body
-			.addHandler('GET', '/empty/l10n/de.json', {
-				status: 200,
-				headers: { 'Content-Type': 'application/json' },
-				body: '',
-			})
-			// Response contains JSON but no translations
-			.addHandler('GET', '/missing-bundle/l10n/de.json', {
-				status: 200,
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({}),
-			})
-			// Response contains JSON but the translations are invalid
-			.addHandler('GET', '/invalid/l10n/de.json', {
-				status: 200,
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					translations: 'invalid',
-				}),
-			})
-			.addHandler('GET', '/404/l10n/de.json', {
-				status: 404,
-				statusText: 'Not Found',
-			})
-			.addHandler('GET', '/500/l10n/de.json', {
-				status: 500,
-				statusText: 'Internal Server Error',
-			})
-			.addHandler('GET', '/networkissue/l10n/de.json', (req) => req.setNetworkError())
-			.setDefault404()
-		server
-			.disableTimeout()
-		server
-			.install()
+		setLanguage('de')
+		server.listen()
 	})
 
 	afterEach(() => {
-		server.remove()
 		vi.clearAllMocks()
+		server.close()
+	})
+
+	afterAll(() => {
 	})
 
 	it('calls callback if app already exists', async () => {
@@ -86,117 +68,66 @@ describe('loadTranslations', () => {
 			Bye: 'Tschüss',
 		})
 
+		vi.stubGlobal('fetch', vi.fn())
 		const callback = vi.fn()
 		try {
 			await loadTranslations('myapp', callback)
 			// Callback called
 			expect(callback).toBeCalledTimes(1)
 			// No requests done
-			expect(server.getRequestLog().length).toBe(0)
+			expect(fetch).not.toHaveBeenCalled()
 			// Old translations work
 			expect(translate('myapp', 'Bye')).toBe('Tschüss')
 			// does not override translations
 			expect(translate('myapp', 'Hello world!')).toBe('Hello world!')
-		} catch (e) {
-			expect(e).toBe('Unexpected error')
 		} finally {
 			unregister('myapp')
 		}
 	})
 
 	it('calls callback if locale is English', async () => {
-		setLocale('en')
+		setLanguage('en')
 		const callback = vi.fn()
+		vi.stubGlobal('fetch', vi.fn())
 
-		try {
-			await loadTranslations('myapp', callback)
-			// Callback called
-			expect(callback).toBeCalledTimes(1)
-			// No requests done
-			expect(server.getRequestLog().length).toBe(0)
-		} catch (e) {
-			expect(e).toBe('Unexpected error')
-		}
+		await loadTranslations('myapp', callback)
+		// Callback called
+		expect(callback).toBeCalledTimes(1)
+		// No requests done
+		expect(fetch).not.toHaveBeenCalled()
 	})
 
 	it('registers new translations', async () => {
 		const callback = vi.fn()
-		try {
-			await loadTranslations('myapp', callback)
-			// Callback called
-			expect(callback).toBeCalledTimes(1)
-			// No requests done
-			expect(server.getRequestLog().length).toBe(1)
-			// New translations work
-			expect(translate('myapp', 'Hello world!')).toBe('Hallo Welt!')
-		} catch (e) {
-			expect(e).toBe('Unexpected error')
-		}
+
+		await loadTranslations('myapp', callback)
+		// Callback called
+		expect(callback).toBeCalledTimes(1)
+		// New translations work
+		expect(translate('myapp', 'Hello world!')).toBe('Hallo Welt!')
 	})
 
 	it('does reject on network error', async () => {
-		const callback = vi.fn()
-		try {
-			await loadTranslations('networkissue', callback)
-			expect('').toBe('Unexpected pass')
-		} catch (e) {
-			expect(e instanceof Error).toBe(true)
-			expect((<Error>e).message).toBe('Network error')
-		}
+		await expect(loadTranslations('networkissue', vi.fn())).rejects.toThrow('Failed to fetch')
 	})
 
 	it('does reject on server error', async () => {
-		const callback = vi.fn()
-		try {
-			await loadTranslations('500', callback)
-			expect('').toBe('Unexpected pass')
-		} catch (e) {
-			expect(e instanceof Error).toBe(true)
-			expect((<Error>e).message).toBe('Internal Server Error')
-		}
+		await expect(loadTranslations('500', vi.fn())).rejects.toThrow('Internal Server Error')
 	})
 
 	it('does reject on unavailable bundle', async () => {
-		const callback = vi.fn()
-		try {
-			await loadTranslations('404', callback)
-			expect('').toBe('Unexpected pass')
-		} catch (e) {
-			expect(e instanceof Error).toBe(true)
-			expect((<Error>e).message).toBe('Not Found')
-		}
+		await expect(loadTranslations('404', vi.fn())).rejects.toThrow('Not Found')
 	})
 
 	it('does reject on invalid bundle', async () => {
-		const callback = vi.fn()
-		try {
-			await loadTranslations('invalid', callback)
-			expect('').toBe('Unexpected pass')
-		} catch (e) {
-			expect(e instanceof Error).toBe(true)
-			expect((<Error>e).message).toBe('Invalid content of translation bundle')
-		}
+		await expect(loadTranslations('invalid', vi.fn())).rejects.toThrow('Invalid content of translation bundle')
 	})
 
 	it('does reject on missing bundle', async () => {
-		const callback = vi.fn()
-		try {
-			await loadTranslations('missing-bundle', callback)
-			expect('').toBe('Unexpected pass')
-		} catch (e) {
-			expect(e instanceof Error).toBe(true)
-			expect((<Error>e).message).toBe('Invalid content of translation bundle')
-		}
+		await expect(loadTranslations('missing-bundle', vi.fn())).rejects.toThrow('Invalid content of translation bundle')
 	})
 
 	it('does reject on empty response', async () => {
-		const callback = vi.fn()
-		try {
-			await loadTranslations('empty', callback)
-			expect('').toBe('Unexpected pass')
-		} catch (e) {
-			expect(e instanceof Error).toBe(true)
-			expect((<Error>e).message).toBe('Invalid content of translation bundle')
-		}
+		await expect(loadTranslations('empty', vi.fn())).rejects.toThrow('Invalid content of translation bundle')
 	})
 })
