@@ -62,7 +62,7 @@
     "@nextcloud/vite-config": "^2.3.1",
     "@types/dompurify": "^3.2.0",
     "@types/escape-html": "^1.0.4",
-    "@types/gettext-parser": "^4.0.4",
+    "@types/gettext-parser": "^8.0.0",
     "@types/node": "^22.13.4",
     "@types/node-gettext": "^3.0.6",
     "@vitest/coverage-v8": "^3.0.5",
